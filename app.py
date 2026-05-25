@@ -237,6 +237,16 @@ except Exception as e:
 
 # -------- HELPER FUNCTIONS --------
 
+def clean_app_name(name: str) -> str:
+    name_clean = name.lower().strip()
+    # Remove prefix command words
+    name_clean = re.sub(r'^(open|launch|start|run|close|terminate|stop|exit|kill)\s+', '', name_clean).strip()
+    # Remove common suffix noise like "from my pc", "on my computer", etc.
+    name_clean = re.sub(r'\s+(from|on)\s+(my\s+)?(pc|computer)$', '', name_clean).strip()
+    # Remove general app/application suffixes
+    name_clean = re.sub(r'\s+(app|application|exe|program|browser)$', '', name_clean).strip()
+    return name_clean
+
 def extract_name_from_email(email):
     name_part = email.split("@")[0]
     name_only = ''.join([c for c in name_part if not c.isdigit()])
@@ -835,6 +845,7 @@ try:
     @tool
     def open_application(name: str):
         """Opens any application based on user input."""
+        name_clean = clean_app_name(name)
         app_map = {
             "chrome": "chrome", "notepad": "notepad", "word": "winword",
             "vscode": "code", "vs code": "code", "calculator": "calc",
@@ -842,9 +853,9 @@ try:
             "vlc": "vlc", "excel": "excel", "powerpoint": "powerpnt",
             "command prompt": "cmd", "cmd": "cmd"
         }
-        exe_name = app_map.get(name.lower().strip(), name.lower().strip())
+        exe_name = app_map.get(name_clean, name_clean)
         os.system(f"start {exe_name}")
-        return f"Attempted to open {name}"
+        return f"Attempted to open {name_clean}"
 
     @tool
     def get_time():
@@ -996,9 +1007,7 @@ try:
     @tool
     def close_application(name: str):
         """Closes an open application"""
-        name_clean = name.lower().strip()
-        name_clean = re.sub(r'^(close|terminate|stop|exit|open|kill)\s+', '', name_clean).strip()
-        name_clean = re.sub(r'\s+(app|application|exe|program|browser)$', '', name_clean).strip()
+        name_clean = clean_app_name(name)
         app_map = {
             "chrome": ["chrome.exe"], "notepad": ["notepad.exe"], "word": ["winword.exe"],
             "vscode": ["code.exe"], "vs code": ["code.exe"], "calculator": ["CalculatorApp.exe", "Calculator.exe"],
@@ -1200,7 +1209,7 @@ def try_local_command_execution(user_input):
         return notepad_summary_fn(topic)
         
     # Handle VS Code code generation
-    if "code" in text and ("vs code" in text or "vscode" in text or "yes code" in text or "peace code" in text):
+    if "code" in text and ("vs code" in text or "vscode" in text or "yes code" in text or "peace code" in text) and not any(text.startswith(word) for word in ["close", "terminate", "stop", "exit", "kill", "open", "launch", "start", "run"]):
         topic = text
         topic = re.sub(
             r'\b(generate|write|create|make|python|code|for|in|vscode|vs\s*code|yes\s*code|peace\s*code)\b',
@@ -1228,7 +1237,7 @@ def try_local_command_execution(user_input):
     # Handle open applications
     open_match = re.match(r"^(open|launch|start|run)\s+(.*)$", text)
     if open_match:
-        app_name = open_match.group(2).strip()
+        app_name = clean_app_name(open_match.group(2).strip())
         app_map = {
             "chrome": "chrome", "google chrome": "chrome", "browser": "chrome",
             "notepad": "notepad", "note pad": "notepad",
@@ -1267,7 +1276,7 @@ def try_local_command_execution(user_input):
     # Handle close applications
     close_match = re.match(r"^(close|terminate|stop|exit|kill)\s+(.*)$", text)
     if close_match:
-        app_name = close_match.group(2).strip()
+        app_name = clean_app_name(close_match.group(2).strip())
         if app_name in ["youtube", "you tube", "youtub", "music", "song", "video"]:
             try:
                 # pyrefly: ignore [missing-import]
